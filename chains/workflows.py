@@ -113,7 +113,7 @@ class DataAnalysisWorkflow(BaseWorkflow):
     async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         logger.info("Executing DataAnalysisWorkflow")
         try:
-            result = self.chain.run(questions=input_data.get("task_description", ""), files=input_data.get("files", []))
+            result = self.chain.run(questions=input_data.get("task_description", ""), files=input_data.get("additional_files", []))
             return {
                 "analysis_result": result,
                 "workflow_type": "data_analysis",
