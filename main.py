@@ -238,6 +238,10 @@ def detect_workflow_type_fallback(
     """
     Fallback keyword-based workflow detection when LLM is not available
     """
+    # If no URL is present, it's likely a data_analysis task, not web scraping.
+    if "http" not in task_description.lower():
+        return "data_analysis"
+        
     if not task_description:
         return default_workflow
 
