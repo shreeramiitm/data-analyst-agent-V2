@@ -234,69 +234,23 @@ async def detect_workflow_type_llm(
 
 def detect_workflow_type_fallback(
     task_description: str, default_workflow: str = DEFAULT_WORKFLOW
-) -> str:  # Fallback keyword-based workflow detection
+) -> str:
     """
-    Fallback keyword-based workflow detection when LLM is not available
+    Fallback keyword-based workflow detection when LLM is not available.
+    This is the final, corrected logic.
     """
-    # If no URL is present, it's likely a data_analysis task, not web scraping.
-    if "http" not in task_description.lower():
-        return "data_analysis"
-        
     if not task_description:
         return default_workflow
 
     task_lower = task_description.lower()
 
-    # Web scraping patterns - PRIORITIZE BEFORE IMAGE ANALYSIS
-    if any(keyword in task_lower for keyword in SCRAPING_KEYWORDS):
-        # Check if it involves multiple steps
-        # (cleaning, analysis, visualization, questions)
-        if any(keyword in task_lower for keyword in MULTI_STEP_KEYWORDS):
-            return "multi_step_web_scraping"
-        else:
-            return "multi_step_web_scraping"  # Image analysis patterns
-
-    if any(keyword in task_lower for keyword in IMAGE_KEYWORDS):
-        return "image_analysis"
-
-    # Text analysis patterns
-    if any(keyword in task_lower for keyword in TEXT_KEYWORDS):
-        return "text_analysis"
-
-    # Legal/Court data patterns - map to general data analysis
-    if any(keyword in task_lower for keyword in LEGAL_KEYWORDS):
-        return "data_analysis"
-
-    # Statistical analysis patterns
-    if any(keyword in task_lower for keyword in STATS_KEYWORDS):
-        return "statistical_analysis"
-
-    # Database analysis patterns
-    if any(keyword in task_lower for keyword in DB_KEYWORDS):
-        return "database_analysis"
-
-    # Data visualization patterns
-    if any(keyword in task_lower for keyword in VIZ_KEYWORDS):
-        return "data_visualization"
-
-    # Exploratory data analysis patterns
-    if any(keyword in task_lower for keyword in EDA_KEYWORDS):
-        return "exploratory_data_analysis"
-
-    # Predictive modeling patterns
-    if any(keyword in task_lower for keyword in ML_KEYWORDS):
-        return "predictive_modeling"
-
-    # Code generation patterns
-    if any(keyword in task_lower for keyword in CODE_KEYWORDS):
-        return "code_generation"
-
-    # Generic web scraping patterns
-    if any(keyword in task_lower for keyword in WEB_KEYWORDS):
+    # 1. If a URL is present, it's always a web scraping task.
+    if "http" in task_lower or any(keyword in task_lower for keyword in SCRAPING_KEYWORDS):
         return "multi_step_web_scraping"
 
-    return default_workflow
-
+    # 2. If no URL is present, any file analysis requires code execution.
+    # This handles all CSV cases (movies, edges, grades).
+    return "code_generation"
 
 def prepare_workflow_parameters(
     task_description: str, workflow_type: str, file_content: str = None
