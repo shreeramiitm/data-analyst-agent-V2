@@ -1,81 +1,47 @@
-AI Data Analyst Agent
-Overview
-This project is a powerful, AI-driven Data Analyst Agent built with FastAPI and LangChain. It provides a REST API that can understand natural language instructions to perform complex data analysis tasks. The agent can source data from web pages, process and clean it, perform analysis, generate visualizations, and answer specific questions based on the findings.
+# 📊 AI Data Analyst Agent
 
-The core of the agent is its modular workflow system, which intelligently selects and executes a series of steps to fulfill a user's request, from initial data scraping to final insight generation.
+> **An AI-powered data analysis assistant** that can scrape, clean, analyze, and visualize data — all from plain English instructions.
 
-Key Features
-Natural Language Understanding: Simply describe your data analysis task in a text file.
+## 🚀 Overview
 
-Multi-Modal Input: Accepts a required questions.txt file along with optional data files (e.g., CSVs, images).
+This project is a **powerful, AI-driven Data Analyst Agent** built with **FastAPI** and **LangChain**.  
+It provides a **REST API** that understands natural language instructions to perform **complex data analysis workflows** — from **web scraping** to **insight generation**.
 
-Automated Web Scraping: Intelligently scrapes and parses data from web pages.
+The agent follows a **modular workflow**:
+1. **Source data** (from web pages or uploaded files)  
+2. **Process & clean** it automatically  
+3. **Perform advanced analysis** (statistics, trends, key findings)  
+4. **Generate dynamic visualizations** (returned as base64-encoded images)  
+5. **Return structured JSON insights**, even if the task times out
 
-Data Cleaning & Processing: Automatically cleans and prepares data for analysis.
+---
 
-Advanced Analysis: Performs statistical analysis, identifies trends, and extracts key insights.
+## ✨ Key Features
 
-Dynamic Visualization: Generates charts and plots (e.g., scatterplots, histograms) and returns them as base64-encoded images.
+- **🗣 Natural Language Understanding** – Describe your analysis task in a `.txt` file.
+- **📂 Multi-Modal Input** – Accepts a `questions.txt` plus optional files (`.csv`, `.xlsx`, `.png`, etc.).
+- **🌐 Automated Web Scraping** – Extracts and parses data directly from web pages.
+- **🧹 Data Cleaning & Processing** – Automatically handles missing values, formatting, and transformation.
+- **📈 Advanced Analysis** – Performs statistical summaries, trend detection, and insight extraction.
+- **📊 Dynamic Visualization** – Creates charts (scatterplots, histograms, etc.).
+- **⚡ Robust & Scalable** – FastAPI backend, Docker-ready for deployment.
+- **⏱ Graceful Timeouts** – Always returns a structured JSON response (even if >5 min).
 
-Robust & Scalable: Built with a modern FastAPI backend and containerized with Docker for easy deployment.
+---
 
-Graceful Timeouts: Ensures a structured JSON response is always returned, even if a request exceeds the 5-minute processing limit.
+## 📦 Getting Started
 
-Getting Started
-Prerequisites
-Python 3.10+
+### **1️⃣ Prerequisites**
+- Python **3.10+**
+- Docker
+- LLM API key (e.g., **OpenAI**, **Google Gemini**)
 
-Docker
+---
 
-An LLM provider API key (e.g., OpenAI, Google Gemini)
-
-Installation
-Clone the repository:
-
-git clone [your-github-repo-url]
-cd [your-project-directory]
-
-Create a virtual environment:
-
+### **2️⃣ Installation**
+```bash
+git clone https://github.com/shreeramiitm/data-analyst-agent-V2.git
+cd data-analyst-agent-V2
 python -m venv venv
-source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-
-Install dependencies:
-
+source venv/bin/activate   # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-Configure Environment Variables:
-Create a .env file in the project root and add your API keys.
-
-AI_PIPE_TOKEN="your_openai_or_equivalent_api_key"
-GOOGLE_API_KEY="your_google_api_key"
-
-How to Run
-Using Docker (Recommended)
-Build the Docker image:
-
-docker build -t data-analyst-agent .
-
-Run the Docker container:
-
-docker run -d -p 8000:80 --env-file .env --name data-agent-container data-analyst-agent
-
-Running Locally
-uvicorn main:app --host 0.0.0.0 --port 8000
-
-The API will be available at http://localhost:8000.
-
-API Usage
-The primary endpoint is /api/. It accepts multipart/form-data POST requests.
-
-Parameters:
-
-questions_txt (required): A .txt file containing the natural language instructions for the analysis task.
-
-files (optional): Additional files (e.g., data.csv, image.png) to be used in the analysis.
-
-Example curl Request:
-
-curl -X POST "http://localhost:8000/api/" \
--F "questions_txt=@path/to/your/questions.txt" \
--F "files=@path/to/your/data.csv"
