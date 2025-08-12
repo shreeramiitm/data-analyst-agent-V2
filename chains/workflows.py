@@ -171,85 +171,82 @@ class CodeGenerationWorkflow(BaseWorkflow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.prompt_template = ChatPromptTemplate.from_messages([
-            ("system", CODE_WORKFLOW_SYSTEM_PROMPT),
-            ("human", CODE_WORKFLOW_HUMAN_PROMPT),
+            ("system", """You are an expert Python data analyst. Your task is to write a single, complete, and executable Python script to answer the user's request based on the provided file(s).
+
+**Instructions:**
+1.  **Read Input Files:** The user's files are provided in a dictionary called `files`. The keys are filenames (e.g., 'grades.csv') and the values are the files' string content. You MUST use `io.StringIO` to read this string data into a pandas DataFrame.
+2.  **Perform Analysis:** Carry out all the steps requested by the user, including calculations, analysis, and generating any required visualizations with Matplotlib.
+3.  **Final Output:** The script's ONLY output MUST be a single JSON object printed to standard output.
+4.  **JSON Structure:** The final JSON object should contain the direct answers to the user's questions. If visualizations are requested, they MUST be included as base64-encoded strings within this JSON object.
+5.  **Final Print Statement:** The VERY LAST line of your script must be `print(json.dumps(final_json_object))`.
+6.  **Required Imports:** The script must import all necessary libraries (pandas, json, io, matplotlib, base64, etc.)."""),
+            ("human", """**Task:** {task_description}
+**Files:** {files}
+
+**Your Python Script:**"""),
         ])
         self.chain = LLMChain(llm=self.llm, prompt=self.prompt_template)
 
     async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         logger.info("Executing CodeGenerationWorkflow")
         try:
-            questions = input_data.get("questions", "")
             task_description = input_data.get("task_description", "")
+            files = input_data.get("additional_files", {}) # Ensure we use the correct key
 
             # Generate Python code
-            code = self.chain.run(questions=questions, task_description=task_description)
+            code = self.chain.run(task_description=task_description, files=files)
 
-            # Clean the code (remove markdown formatting if present)
+            # Clean and execute the code
             cleaned_code = self._clean_generated_code(code)
+            exec_result = self._safe_execute_code(cleaned_code, files)
 
-            # Try to validate and execute the code
-            exec_result = self._safe_execute_code(cleaned_code, input_data)
+            # The result from the execution is the final answer
+            return exec_result
 
-            return {
-                "generated_code": cleaned_code,
-                "execution_result": exec_result,
-                "code_validation": self._validate_python_syntax(cleaned_code),
-                "workflow_type": "code_generation",
-                "status": "completed",
-                "timestamp": datetime.now().isoformat(),
-                "questions_processed": questions,
-            }
         except Exception as e:
             logger.error(f"Error in CodeGenerationWorkflow: {e}")
             return {
                 "error": str(e),
                 "workflow_type": "code_generation",
                 "status": "error",
-                "timestamp": datetime.now().isoformat(),
             }
 
     def _clean_generated_code(self, code: str) -> str:
         """Clean generated code by removing markdown formatting"""
-        # Remove markdown code blocks
         import re
-
-        # Remove ```python and ``` markers
         code = re.sub(r"```python\n?", "", code)
         code = re.sub(r"```\n?", "", code)
-        # Remove any leading/trailing whitespace
         return code.strip()
 
-    def _validate_python_syntax(self, code: str) -> Dict[str, Any]:
-        """Validate Python syntax without executing"""
-        try:
-            compile(code, "<string>", "exec")
-            return {"valid": True, "message": "Syntax is valid"}
-        except SyntaxError as e:
-            return {"valid": False, "error": str(e), "line": e.lineno, "position": e.offset}
+    def _safe_execute_code(self, code: str, files: Dict[str, Any]) -> Dict[str, Any]:
+        """Safely execute generated code and capture the final JSON output."""
+        import io
+        import sys
+        import json
+        from contextlib import redirect_stdout
 
-    def _safe_execute_code(self, code: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Safely execute generated code with restricted environment"""
+        buffer = io.StringIO()
+        
+        # Prepare the execution environment, passing the files dictionary
+        exec_globals = {
+            "files": files,
+        }
+
         try:
-            # Create a restricted execution environment
-            safe_globals = {
-                "__builtins__": {
-                    "len": len,
-                    "str": str,
-                    "int": int,
-                    "float": float,
-                    "list": list,
-                    "dict": dict,
-                    "tuple": tuple,
-                    "set": set,
-                    "range": range,
-                    "enumerate": enumerate,
-                    "zip": zip,
-                    "print": print,
-                    "type": type,
-                    "isinstance": isinstance,
-                }
-            }
+            with redirect_stdout(buffer):
+                exec(code, exec_globals)
+            
+            output = buffer.getvalue().strip()
+            
+            # The script is expected to print a JSON string as its final output
+            if output:
+                return json.loads(output)
+            else:
+                return {"error": "Script executed but produced no output."}
+            
+        except Exception as e:
+            # If execution fails, return the error and any captured output
+            return {"execution_status": "failed", "error": str(e), "output": buffer.getvalue()}
 
             # Add common data science imports
             exec_locals = {}
