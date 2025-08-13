@@ -370,6 +370,16 @@ async def analyze_data(
 
         # Intelligent workflow type detection using LLM
         detected_workflow = await detect_workflow_type_llm(task_description, "multi_step_web_scraping")
+    
+        # NEW: Force code_generation for CSV analysis
+        csv_files = [f for f in file_contents.keys() if f.endswith('.csv')]
+        if csv_files and any(keyword in task_description.lower() for keyword in [
+            "analyze", "analysis", "highest", "lowest", "average", "calculate", 
+            "which student", "what is", "find", "determine", "attached", "file",
+            "csv", "data", "score", "grade"
+        ]):
+        logger.info(f"Detected CSV analysis task, forcing code_generation workflow for files: {csv_files}")
+        detected_workflow = "code_generation"
         logger.info(f"Detected workflow: {detected_workflow}")
         logger.info(f"Task description: {task_description[:200]}...")
 
