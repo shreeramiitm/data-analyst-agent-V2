@@ -165,8 +165,6 @@ class ImageAnalysisWorkflow(BaseWorkflow):
             }
 
 
-# In chains/workflows.py
-
 class CodeGenerationWorkflow(BaseWorkflow):
     """Workflow for Python code generation and execution"""
 
@@ -193,7 +191,7 @@ class CodeGenerationWorkflow(BaseWorkflow):
         logger.info("Executing CodeGenerationWorkflow")
         try:
             task_description = input_data.get("task_description", "")
-            files = input_data.get("additional_files", {}) # Ensure we use the correct key
+            files = input_data.get("additional_files", {})
 
             # Generate Python code
             code = self.chain.run(task_description=task_description, files=files)
@@ -249,53 +247,6 @@ class CodeGenerationWorkflow(BaseWorkflow):
         except Exception as e:
             # If execution fails, return the error and any captured output
             return {"execution_status": "failed", "error": str(e), "output": buffer.getvalue()}
-
-            # Add common data science imports
-            exec_locals = {}
-            setup_code = """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
-import json
-
-# Create sample data if needed
-sample_data = {
-    'numbers': [1, 2, 3, 4, 5],
-    'categories': ['A', 'B', 'C', 'D', 'E'],
-    'values': [10, 20, 15, 25, 30]
-}
-df_sample = pd.DataFrame(sample_data)
-"""
-
-            exec(setup_code, safe_globals, exec_locals)
-            exec(code, safe_globals, exec_locals)
-
-            # Extract meaningful results
-            results = {}
-            for key, value in exec_locals.items():
-                if not key.startswith("_") and key not in ["pd", "np", "plt", "sns", "datetime", "json"]:
-                    try:
-                        # Convert to serializable format
-                        if hasattr(value, "to_dict"):  # DataFrame
-                            results[key] = str(value.head())
-                        elif hasattr(value, "tolist"):  # NumPy array
-                            results[key] = str(value)
-                        else:
-                            results[key] = str(value)
-                    except Exception:
-                        results[key] = f"<{type(value).__name__}>"
-
-            return {
-                "execution_status": "success",
-                "variables_created": list(results.keys()),
-                "results": results,
-                "output_summary": f"Code executed successfully, created {len(results)} variables",
-            }
-
-        except Exception as e:
-            return {"execution_status": "failed", "error": str(e), "error_type": type(e).__name__}
 
 
 class PredictiveModelingWorkflow(BaseWorkflow):
@@ -585,7 +536,7 @@ class MultiStepWebScrapingWorkflow(BaseWorkflow):
                     "data_cleaning",
                     "data_analysis",
                     "visualization",
-                    "question_answering",
+                    "Youtubeing",
                 ],
             }
 
@@ -1126,12 +1077,3 @@ def run_llm_planned_workflow(user_request: str, llm=None) -> dict:
         step_input = {**data, **params}
         data = step.run(step_input)
     return data
-
-
-# --- Usage Example ---
-# Suppose you want to run the workflow for the content of questions.txt:
-#
-# with open('Project2/questions.txt', 'r') as f:
-#     user_request = f.read()
-# result = run_llm_planned_workflow(user_request, llm=my_llm)
-# print(result)
