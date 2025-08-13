@@ -165,11 +165,14 @@ class ImageAnalysisWorkflow(BaseWorkflow):
             }
 
 
+# In chains/workflows.py
+
 class CodeGenerationWorkflow(BaseWorkflow):
     """Workflow for Python code generation and execution"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # The prompt is now more detailed to guide the LLM correctly.
         self.prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are an expert Python data analyst. Your task is to write a single, complete, and executable Python script to answer the user's request based on the provided file(s).
 
@@ -191,17 +194,18 @@ class CodeGenerationWorkflow(BaseWorkflow):
         logger.info("Executing CodeGenerationWorkflow")
         try:
             task_description = input_data.get("task_description", "")
-            files = input_data.get("additional_files", {}) # Ensure we use the correct key
+            # This ensures the workflow gets the content of the uploaded files.
+            files = input_data.get("additional_files", {}) 
 
-            # Generate Python code
-            code = self.chain.run(task_description=task_description, files=files)
+            # Generate the Python script from the LLM.
+            code_response = self.chain.run(task_description=task_description, files=files)
 
-            # Clean and execute the code
-            cleaned_code = self._clean_generated_code(code)
-            exec_result = self._safe_execute_code(cleaned_code, files)
+            # Clean and execute the generated script.
+            cleaned_code = self._clean_generated_code(code_response)
+            execution_result = self._safe_execute_code(cleaned_code, files)
 
-            # The result from the execution is the final answer
-            return exec_result
+            # The result from the executed script is the final answer.
+            return execution_result
 
         except Exception as e:
             logger.error(f"Error in CodeGenerationWorkflow: {e}")
@@ -212,88 +216,43 @@ class CodeGenerationWorkflow(BaseWorkflow):
             }
 
     def _clean_generated_code(self, code: str) -> str:
-        """Clean generated code by removing markdown formatting"""
+        """Removes markdown formatting from the LLM's code output."""
         import re
         code = re.sub(r"```python\n?", "", code)
         code = re.sub(r"```\n?", "", code)
         return code.strip()
 
     def _safe_execute_code(self, code: str, files: Dict[str, Any]) -> Dict[str, Any]:
-        """Safely execute generated code and capture the final JSON output."""
+        """Executes the generated Python script in a controlled environment and captures its output."""
         import io
         import sys
         import json
         from contextlib import redirect_stdout
 
+        # A buffer to capture the script's print statements.
         buffer = io.StringIO()
         
-        # Prepare the execution environment, passing the files dictionary
-        exec_globals = {
+        # The 'files' dictionary is passed into the script's execution scope.
+        execution_globals = {
             "files": files,
         }
 
         try:
+            # The script's output (which should be the final JSON) is redirected to the buffer.
             with redirect_stdout(buffer):
-                exec(code, exec_globals)
+                exec(code, execution_globals)
             
             output = buffer.getvalue().strip()
             
-            # The script is expected to print a JSON string as its final output
+            # The script is expected to print a JSON string as its final output.
             if output:
                 return json.loads(output)
             else:
-                return {"error": "Script executed but produced no output."}
+                return {"error": "The analysis script executed but produced no output."}
             
         except Exception as e:
-            # If execution fails, return the error and any captured output
-            return {"execution_status": "failed", "error": str(e), "output": buffer.getvalue()}
-
-            # Add common data science imports
-            exec_locals = {}
-            setup_code = """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
-import json
-
-# Create sample data if needed
-sample_data = {
-    'numbers': [1, 2, 3, 4, 5],
-    'categories': ['A', 'B', 'C', 'D', 'E'],
-    'values': [10, 20, 15, 25, 30]
-}
-df_sample = pd.DataFrame(sample_data)
-"""
-
-            exec(setup_code, safe_globals, exec_locals)
-            exec(code, safe_globals, exec_locals)
-
-            # Extract meaningful results
-            results = {}
-            for key, value in exec_locals.items():
-                if not key.startswith("_") and key not in ["pd", "np", "plt", "sns", "datetime", "json"]:
-                    try:
-                        # Convert to serializable format
-                        if hasattr(value, "to_dict"):  # DataFrame
-                            results[key] = str(value.head())
-                        elif hasattr(value, "tolist"):  # NumPy array
-                            results[key] = str(value)
-                        else:
-                            results[key] = str(value)
-                    except Exception:
-                        results[key] = f"<{type(value).__name__}>"
-
-            return {
-                "execution_status": "success",
-                "variables_created": list(results.keys()),
-                "results": results,
-                "output_summary": f"Code executed successfully, created {len(results)} variables",
-            }
-
-        except Exception as e:
-            return {"execution_status": "failed", "error": str(e), "error_type": type(e).__name__}
+            # If the script fails, return a detailed error.
+            return {"execution_status": "failed", "error": str(e), "output_captured": buffer.getvalue()}
 
 
 class PredictiveModelingWorkflow(BaseWorkflow):
