@@ -184,7 +184,7 @@ def extract_output_requirements(
 
 
 async def detect_workflow_type_llm(
-    task_description: str, default_workflow: str = DEFAULT_WORKFLOW
+    task_description: str, default_workflow: str = DEFAULT_WORKFLOW, has_files: bool = False
 ) -> str:  # LLM-based workflow type detection
     """
     Use LLM prompting to determine the workflow type based on the
@@ -220,37 +220,40 @@ async def detect_workflow_type_llm(
             else:
                 logger.warning(
                     f"LLM returned invalid workflow: {detected_workflow}, " f"using fallback")
-                return detect_workflow_type_fallback(task_description, default_workflow)
+                return detect_workflow_type_fallback(task_description, default_workflow, has_files)
 
         else:
             logger.warning(
                 "LLM not available, using fallback workflow detection")
-            return detect_workflow_type_fallback(task_description, default_workflow)
+            return detect_workflow_type_fallback(task_description, default_workflow, has_files)
 
     except Exception as e:
         logger.error(f"Error in LLM workflow detection: {e}")
-        return detect_workflow_type_fallback(task_description, default_workflow)
+        return detect_workflow_type_fallback(task_description, default_workflow, has_files)
 
 
 def detect_workflow_type_fallback(
-    task_description: str, default_workflow: str = DEFAULT_WORKFLOW
+    task_description: str, default_workflow: str = DEFAULT_WORKFLOW, has_files: bool = False
 ) -> str:
     """
     Fallback keyword-based workflow detection when LLM is not available.
-    This is the final, corrected logic.
     """
     if not task_description:
         return default_workflow
 
     task_lower = task_description.lower()
 
-    # 1. If a URL is present, it's always a web scraping task.
+    # If a URL is present, it's a web scraping task.
     if "http" in task_lower or any(keyword in task_lower for keyword in SCRAPING_KEYWORDS):
         return "multi_step_web_scraping"
 
-    # 2. If no URL is present, any file analysis requires code execution.
-    # This handles all CSV cases (movies, edges, grades).
-    return "code_generation"
+    # If files are present, it requires code execution.
+    if has_files:
+        return "code_generation"
+
+    # If no URL and no files, it's a general data analysis task.
+    return "data_analysis"
+
 
 def prepare_workflow_parameters(
     task_description: str, workflow_type: str, file_content: str = None
@@ -345,6 +348,7 @@ async def analyze_data(
         # Process additional files
         processed_files = {}
         file_contents = {}
+        has_files = len(files) > 0
 
         for file in files:
             if file.filename:
@@ -369,17 +373,8 @@ async def analyze_data(
         task_description = questions_text
 
         # Intelligent workflow type detection using LLM
-        detected_workflow = await detect_workflow_type_llm(task_description, "multi_step_web_scraping")
+        detected_workflow = await detect_workflow_type_llm(task_description, "multi_step_web_scraping", has_files)
     
-        # NEW: Force code_generation for CSV analysis
-        csv_files = [f for f in file_contents.keys() if f.endswith('.csv')]
-        if csv_files and any(keyword in task_description.lower() for keyword in [
-            "analyze", "analysis", "highest", "lowest", "average", "calculate", 
-            "which student", "what is", "find", "determine", "attached", "file",
-            "csv", "data", "score", "grade"
-        ]):
-        logger.info(f"Detected CSV analysis task, forcing code_generation workflow for files: {csv_files}")
-        detected_workflow = "code_generation"
         logger.info(f"Detected workflow: {detected_workflow}")
         logger.info(f"Task description: {task_description[:200]}...")
 
